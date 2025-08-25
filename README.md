@@ -26,6 +26,10 @@ main :: () {
     SmallVec.len(vec), 
     SmallVec.is_remote(vec));
     
+    for vec {
+        //
+    }
+    
     // Pop elements
     value, success := SmallVec.pop(*vec);
     if success {
