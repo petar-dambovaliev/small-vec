@@ -100,6 +100,20 @@ pop :: (vec: *SmallVec) -> vec.T, bool {
     }
 }
 
+for_expansion :: (vec: SmallVec, body: Code, flags: For_Flags) #expand {
+    slice: [] vec.T;
+
+    if !is_remote(vec) {
+        slice = vec.variant.LocalBuf;
+    } else {
+        slice = vec.variant.RemoteBuf;
+    }
+
+    for `it, `it_index: slice {
+        #insert body;
+    }
+}
+
 // ============================================================================
 // PRIVATE IMPLEMENTATION
 // ============================================================================
