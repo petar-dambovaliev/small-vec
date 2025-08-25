@@ -30,72 +30,72 @@ init :: ($T: Type, $N: s64, allocator: Allocator = .{}) -> SmallVec(T, N) {
     return vec;
 }
 
-deinit :: ($T: Type, $N: s64, vec: *SmallVec(T, N)) {
-    if is_remote(T, N, vec) {
+deinit :: (vec: *SmallVec) {
+    if is_remote(vec) {
         array_free(vec.variant.RemoteBuf);
     }
 }
 
-len :: ($T: Type, $N: s64, vec: SmallVec(T, N)) -> s64 {
+len :: (vec: SmallVec) -> s64 {
     return vec.count >> 1;  // Shift right by 1 to get count without flag
 }
 
-is_remote :: ($T: Type, $N: s64, vec: SmallVec(T, N)) -> bool {
+is_remote :: (vec: SmallVec) -> bool {
     return (vec.count & 1) != 0;  // Check LSB directly
 }
 
-is_local :: ($T: Type, $N: s64, vec: SmallVec(T, N)) -> bool {
-    return !is_remote(T, N, vec);  // LSB = 0 means local
+is_local :: (vec: SmallVec) -> bool {
+    return !is_remote(vec);  // LSB = 0 means local
 }
 
-push :: ($T: Type, $N: s64, vec: *SmallVec(T, N), value: T) {
-    actual_count := len(T, N, vec);
-    
-    if !is_remote(T, N, vec) && actual_count < N {
+push :: (vec: *SmallVec, value: vec.T) {
+    actual_count := len(vec);
+
+    if !is_remote(vec) && actual_count < vec.N {
         vec.variant.LocalBuf[actual_count] = value;
-        set_count_and_flag(T, N, vec, actual_count + 1, false);
+        set_count_and_flag(vec, actual_count + 1, false);
         return;
     }
 
-    if !is_remote(T, N, vec) && actual_count == N {
-        local_data: [N] T;
-        for i: 0..N-1 {
+    if !is_remote(vec) && actual_count == vec.N {
+        local_data: [vec.N] vec.T;
+        for i: 0..vec.N-1 {
             local_data[i] = vec.variant.LocalBuf[i];
         }
 
-        remote_array: [..] T;
+        remote_array: [..] vec.T;
         remote_array.allocator = vec.allocator;
-        
+
         // Copy local data to remote array
-        for i: 0..N-1 {
+        for i: 0..vec.N-1 {
             array_add(*remote_array, local_data[i]);
         }
-        
+
         array_add(*remote_array, value);
-        
-        vec.variant = SmallVec_Variant(T, N).{ RemoteBuf = remote_array };
-        set_count_and_flag(T, N, vec, remote_array.count, true);
+
+        vec.variant = SmallVec_Variant(vec.T, vec.N).{ RemoteBuf = remote_array };
+        set_count_and_flag(vec, remote_array.count, true);
 
     } else {
         array_add(*vec.variant.RemoteBuf, value);
-        set_count_and_flag(T, N, vec, actual_count + 1, true);
+        set_count_and_flag(vec, actual_count + 1, true);
     }
 }
 
-pop :: ($T: Type, $N: s64, vec: *SmallVec(T, N)) -> T, bool {
-    actual_count := len(T, N, vec);
-    
+pop :: (vec: *SmallVec) -> vec.T, bool {
+    actual_count := len(vec);
+
     if actual_count == 0 {
-        default_value: T;
+        default_value: vec.T;
         return default_value, false;
     }
 
-    if !is_remote(T, N, vec) {
-        set_count_and_flag(T, N, vec, actual_count - 1, false);
+    if !is_remote(vec) {
+        set_count_and_flag(vec, actual_count - 1, false);
         return vec.variant.LocalBuf[actual_count - 1], true;
     } else {
         index := actual_count - 1;
-        set_count_and_flag(T, N, vec, actual_count - 1, true);
+        set_count_and_flag(vec, actual_count - 1, true);
         return vec.variant.RemoteBuf[index], true;
     }
 }
@@ -106,7 +106,7 @@ pop :: ($T: Type, $N: s64, vec: *SmallVec(T, N)) -> T, bool {
 
 #scope_module;
 
-set_count_and_flag :: ($T: Type, $N: s64, vec: *SmallVec(T, N), new_count: s64, is_remote: bool) {
+set_count_and_flag :: (vec: *SmallVec, new_count: s64, is_remote: bool) {
     if is_remote {
         vec.count = (new_count << 1) | 1;  // Shift left by 1, set LSB
     } else {
