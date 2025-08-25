@@ -13,27 +13,27 @@ main :: () {
     vec := SmallVec.init(u32, 4);
     
     // Push elements (stays in local buffer)
-    SmallVec.push(u32, 4, *vec, 10);
-    SmallVec.push(u32, 4, *vec, 20);
-    SmallVec.push(u32, 4, *vec, 30);
-    SmallVec.push(u32, 4, *vec, 40);
+    SmallVec.push(*vec, 10);
+    SmallVec.push(*vec, 20);
+    SmallVec.push(*vec, 30);
+    SmallVec.push(*vec, 40);
     
     // Push one more - triggers switch to remote buffer
-    SmallVec.push(u32, 4, *vec, 50);
+    SmallVec.push(*vec, 50);
     
     // Check status
     print("Length: %, Is remote: %\n", 
-          SmallVec.len(u32, 4, vec), 
-          SmallVec.is_remote(u32, 4, vec));
+    SmallVec.len(vec), 
+    SmallVec.is_remote(vec));
     
     // Pop elements
-    value, success := SmallVec.pop(u32, 4, *vec);
+    value, success := SmallVec.pop(*vec);
     if success {
         print("Popped: %\n", value);
     }
     
     // Clean up
-    SmallVec.deinit(u32, 4, *vec);
+    SmallVec.deinit(*vec);
 }
 ```
 
