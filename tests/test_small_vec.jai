@@ -5,12 +5,12 @@ using SmallVecLib :: #import,file "../small_vec.jai";
 
 main :: () {
     print("=== Testing SmallVec Public API ===\n");
-    
+
     // Test 1: Basic creation and initialization
     print("Test 1: Basic creation...\n");
-    vec := SmallVecLib.init(u32, 4);
-    assert(SmallVecLib.len(vec) == 0, "New vector should have length 0");
-    assert(SmallVecLib.is_local(vec), "New vector should be local");
+    vec : SmallVec(u32, 4);
+    assert(vec.count == 0, "New vector should have length 0");
+    assert(!vec.is_remote, "New vector should be local");
     print("✓ Basic creation passed\n");
 
     // Test 2: Push operations to local buffer
@@ -20,24 +20,24 @@ main :: () {
     SmallVecLib.push(*vec, 30);
     SmallVecLib.push(*vec, 40);
 
-    assert(SmallVecLib.len(vec) == 4, "Length should be 4 after 4 pushes");
-    assert(SmallVecLib.is_local(vec), "Should still be local");
+    assert(vec.count == 4, "Length should be 4 after 4 pushes");
+    assert(!vec.is_remote, "Should still be local");
     print("✓ Local buffer operations passed\n");
 
     // Test 3: Switch to remote buffer
     print("\nTest 3: Switch to remote buffer...\n");
     SmallVecLib.push(*vec, 50);
-    assert(SmallVecLib.len(vec) == 5, "Length should be 5");
-    assert(SmallVecLib.is_remote(vec), "Should now be remote");
+    assert(vec.count == 5, "Length should be 5");
+    assert(vec.is_remote, "Should now be remote");
     print("✓ Remote buffer switch passed\n");
 
     // Test 4: Pop operations
     print("\nTest 4: Pop operations...\n");
-    value, success := SmallVecLib.pop(*vec);
+    success, value := SmallVecLib.pop(*vec);
     assert(success && value == 50, "Should pop 50");
-    assert(SmallVecLib.len(vec) == 4, "Length should be 4 after pop");
+    assert(vec.count == 4, "Length should be 4 after pop");
 
-    value, success = SmallVecLib.pop(*vec);
+    success, value = SmallVecLib.pop(*vec);
     assert(success && value == 40, "Should pop 40");
     print("✓ Pop operations passed\n");
 
@@ -56,18 +56,18 @@ main :: () {
     custom_allocator.proc = custom_allocator_proc;
     custom_allocator.data = null;
 
-    custom_vec := SmallVecLib.init(u32, 2, custom_allocator);
-    SmallVecLib.push(*custom_vec, 100);
+    custom_vec: SmallVec(u32, 2);
+    SmallVecLib.push(*custom_vec, 100,, custom_allocator);
     SmallVecLib.push(*custom_vec, 200);
     SmallVecLib.push(*custom_vec, 300);  // This should trigger remote allocation
 
-    assert(SmallVecLib.len(custom_vec) == 3, "Custom allocator vector should have length 3");
+    assert(custom_vec.count == 3, "Custom allocator vector should have length 3");
     print("✓ Custom allocator passed\n");
 
     // Test 6: Edge cases
     print("\nTest 6: Edge cases...\n");
-    empty_vec := SmallVecLib.init(u32, 4);
-    value, success = SmallVecLib.pop(*empty_vec);
+    empty_vec: SmallVec(u32, 4);
+    success, value = SmallVecLib.pop(*empty_vec);
     assert(!success, "Pop on empty vector should return false");
     print("✓ Edge cases passed\n");
 
@@ -81,11 +81,11 @@ main :: () {
     // Test 7: Iteration
 
      // Create a SmallVec with capacity 3
-    vec1 := SmallVecLib.init(u32, 3, context.allocator);
+    vec1: SmallVec(u32, 3);
     defer SmallVecLib.deinit(*vec1);
 
     // Add some elements
-    SmallVecLib.push(*vec1, 10);
+    SmallVecLib.push(*vec1, 10,, context.allocator);
     SmallVecLib.push(*vec1, 20);
     SmallVecLib.push(*vec1, 30);
 
@@ -106,7 +106,7 @@ main :: () {
     count = 0;
     for value, index: vec1 {
         count += 1;
-        assert(value == vec1.variant.LocalBuf[index], "Value should match buffer");
+        assert(value == vec1.local_buf[index], "Value should match buffer");
         assert(index == count - 1, "Index should be 0, 1, 2");
     }
     assert(count == 3, "Should have iterated 3 times");
@@ -130,6 +130,6 @@ main :: () {
         count += 1;
     }
     assert(count == 2, "Continue should have skipped one element");
-    
+
     print("\n🎉 All tests passed! SmallVec public API is working correctly.\n");
 }
